@@ -1,0 +1,28 @@
+{
+  "name": "evrynetlabs-staking-contract",
+  "version": "1.0.0",
+  "description": "This repository has the main contracts for Evrynet staking smart-contract.",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Evrynetlabs/staking-contract.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Evrynetlabs/staking-contract/issues"
+  },
+  "homepage": "https://github.com/Evrynetlabs/staking-contract#readme",
+  "devDependencies": {
+    "@nomiclabs/buidler": "^1.2.0",
+    "@nomiclabs/buidler-truffle5": "^1.2.0",
+    "@nomiclabs/buidler-web3": "^1.2.0",
+    "web3": "^1.2.6"
+  }
+}
