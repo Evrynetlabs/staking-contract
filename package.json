@@ -23,6 +23,7 @@
     "@nomiclabs/buidler": "^1.2.0",
     "@nomiclabs/buidler-truffle5": "^1.2.0",
     "@nomiclabs/buidler-web3": "^1.2.0",
+    "@openzeppelin/test-helpers": "^0.5.5",
     "web3": "^1.2.6"
   }
 }
