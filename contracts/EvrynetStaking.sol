@@ -104,17 +104,17 @@ contract EvrynetStaking is ReentrancyGuard {
     address public admin;
 
     modifier onlyAdmin {
-        require(msg.sender == admin);
+        require(msg.sender == admin, "ADMIN ONLY");
         _;
     }
 
     modifier onlyActiveCandidate(address candidate) {
-        require(candidateData[candidate].isCandidate == true);
+        require(candidateData[candidate].isCandidate == true, "only active candidate");
         _;
     }
 
     modifier onlyNotCandidate(address candidate) {
-        require(candidateData[candidate].isCandidate == false);
+        require(candidateData[candidate].isCandidate == false, "only not active candidate");
         _;
     }
 
@@ -139,7 +139,7 @@ contract EvrynetStaking is ReentrancyGuard {
         uint voterStake = candidateData[_candidate].voterStake[voter];
         require(voterStake >= _cap, "not enough to unvote");
         if (candidateData[_candidate].owner == voter) {
-            require(voterStake.sub(_cap) >= minValidatorStake, "not enough to unvote");
+            require(voterStake.sub(_cap) >= minValidatorStake, "new stakes < minValidatorStake");
         } else {
             // normal voter, remaining amount should be either 0 or >= minVoterCap
             uint remainAmt = voterStake.sub(_cap);
