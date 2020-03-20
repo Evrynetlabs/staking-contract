@@ -8,5 +8,8 @@ Staking contract using in Evrynet Proof-of-Stake model
 ## Compilation
 `npx buidler compile`
 
+## Linting
+`solhint contracts/EvrynetStaking.sol`
+
 ## Testing with Buidler
 `npx buidler test`

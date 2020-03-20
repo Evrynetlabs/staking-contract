@@ -19,7 +19,7 @@ contract ReentrancyGuard {
         guardCounter += 1;
         uint256 localCounter = guardCounter;
         _;
-        require(localCounter == guardCounter);
+        require(localCounter == guardCounter, "Reentrant");
     }
 }
 
@@ -196,16 +196,16 @@ contract EvrynetStaking is ReentrancyGuard {
 
     function () external payable {}
 
-    function transferAdmin(address newAdmin) onlyAdmin public {
-        require(newAdmin != address(0));
+    function transferAdmin(address newAdmin) public onlyAdmin {
+        require(newAdmin != address(0), "ADMIN 0");
         admin = newAdmin;
     }
 
-    function updateMinValidateStake(uint _newCap) onlyAdmin public {
+    function updateMinValidateStake(uint _newCap) public onlyAdmin {
         minValidatorStake = _newCap;
     }
 
-    function updateMinVoteCap(uint _newCap) onlyAdmin public {
+    function updateMinVoteCap(uint _newCap) public onlyAdmin {
         minVoterCap = _newCap;
     }
 
@@ -216,18 +216,18 @@ contract EvrynetStaking is ReentrancyGuard {
      * @param candidate address of candidate to vote for
      * 
     */
-    function vote(address candidate) payable public onlyValidVoteCap onlyActiveCandidate(candidate) {
+    function vote(address candidate) public payable onlyValidVoteCap onlyActiveCandidate(candidate) {
         uint amount = msg.value;
         address voter = msg.sender;
 
         if (candidateData[candidate].voterStake[voter] == 0) {
             // push new voter to list
-            candidateVoters[candidate].push(voter);           
+            candidateVoters[candidate].push(voter);
         }
 
         candidateData[candidate].voterStake[voter] = candidateData[candidate].voterStake[voter].add(amount);
         candidateData[candidate].totalStake = candidateData[candidate].totalStake.add(amount);
-        
+
         emit Voted(voter, candidate, amount);
     }
 
@@ -239,7 +239,7 @@ contract EvrynetStaking is ReentrancyGuard {
      * @param candidate address of candidate to vote for
      * @param amount amount to withdraw/unvote
     */
-    function unvote(address candidate, uint amount) nonReentrant onlyValidUnvoteAmount(candidate, amount) public {
+    function unvote(address candidate, uint amount) public nonReentrant onlyValidUnvoteAmount(candidate, amount) {
         uint curEpoch = getCurrentEpoch();
         address voter = msg.sender;
 
@@ -260,11 +260,12 @@ contract EvrynetStaking is ReentrancyGuard {
 
     /**
      * @dev register a new candidate, only can call by admin
-     * @dev if a candidate has been registered, then resigned, must wait for all stakers to withdraw from the candidate before can re-register
+     * @dev if a candidate has been registered, then resigned and re-register,
+     * @dev the stakes of voters are remained the same.
      * @param _candidate address of candidate to vote for
      * @param _owner owner of the candidate
     */
-    function register(address _candidate, address _owner) onlyAdmin onlyNotCandidate(_candidate) public {
+    function register(address _candidate, address _owner) public onlyAdmin onlyNotCandidate(_candidate) {
         require(_candidate != address(0), "_candidate address is missing");
         require(_owner != address(0), "_owner address is missing");
 
@@ -273,9 +274,9 @@ contract EvrynetStaking is ReentrancyGuard {
         require(candidates.length < MAX_CANDIDATES, "too many candidates");
         // not current candidate
         candidateData[_candidate] = CandidateData({
-           owner: _owner,
-           isCandidate: true,
-           totalStake: curTotalStake
+            owner: _owner,
+            isCandidate: true,
+            totalStake: curTotalStake
         });
         candidates.push(_candidate);
         candidateVoters[_candidate].push(_owner);
@@ -291,7 +292,7 @@ contract EvrynetStaking is ReentrancyGuard {
      * @dev after CANDIDATE_LOCKING_PERIOD epochs candidate can withdraw
      * @param _candidate address of candidate to resigned
     */
-    function resign(address _candidate) onlyActiveCandidate(_candidate) onlyCandidateOwner(_candidate) public {
+    function resign(address _candidate) public onlyActiveCandidate(_candidate) onlyCandidateOwner(_candidate) {
         address payable owner = msg.sender;
 
         uint curEpoch = getCurrentEpoch();
@@ -328,7 +329,7 @@ contract EvrynetStaking is ReentrancyGuard {
      * @dev withdraw locked funds
      * @param epoch withdraw all locked funds from this epoch
     */
-    function withdraw(uint epoch) nonReentrant public returns(bool) {
+    function withdraw(uint epoch) public nonReentrant returns(bool) {
         uint curEpoch = getCurrentEpoch();
         require(curEpoch >= epoch, "can not withdraw for future epoch");
 
@@ -347,7 +348,7 @@ contract EvrynetStaking is ReentrancyGuard {
         return true;
     }
 
-    function withdrawWithIndex(uint epoch, uint index) nonReentrant public returns(bool) {
+    function withdrawWithIndex(uint epoch, uint index) public nonReentrant returns(bool) {
         uint curEpoch = getCurrentEpoch();
         require(curEpoch >= epoch, "can not withdraw for future epoch");
 
@@ -372,7 +373,7 @@ contract EvrynetStaking is ReentrancyGuard {
         return true;
     }
 
-    function updateMaxValidatorSize(uint newMaxValidatorSize) onlyAdmin public {
+    function updateMaxValidatorSize(uint newMaxValidatorSize) public onlyAdmin {
         maxValidatorSize = newMaxValidatorSize;
     }
 
