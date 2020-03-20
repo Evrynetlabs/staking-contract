@@ -87,7 +87,7 @@ contract("EvrynetStaking", function (accounts) {
 
     describe("test transfer admin", async () => {
         it("test revert when set admin address to zero", async () => {
-            await expectRevert.unspecified(stakingSC.transferAdmin(zeroAddress, { from: admin }));
+            await expectRevert(stakingSC.transferAdmin(zeroAddress, { from: admin }), "ADMIN 0");
         });
 
         it("test revert if msg.sender is not admin", async () => {
