@@ -30,13 +30,13 @@ contract("EvrynetStaking", function (accounts) {
     describe("test basic read operation after init", async () => {
         it("getListCandidates", async () => {
             let data = await stakingSC.getListCandidates();
-            assert(data[0] = candidates, "unexpected candidates");
-            assert(data[1].length == candidates.length, "unexpected stakes length");
-            data[1].forEach(stake => {
+            assert(data._candidates = candidates, "unexpected candidates");
+            assert(data.stakes.length == candidates.length, "unexpected stakes length");
+            data.stakes.forEach(stake => {
                 assertEqual(stake, minValidatorStake);
             });
-            assertEqual(data[3], maxValidatorsSize, "unexpected max validators size");
-            assertEqual(data[4], minValidatorStake, "unexpected min validator stake");
+            assertEqual(data.validatorSize, maxValidatorsSize, "unexpected max validators size");
+            assertEqual(data.minValidatorCap, minValidatorStake, "unexpected min validator stake");
         })
 
         it("test get candidate info function", async () => {
@@ -48,9 +48,9 @@ contract("EvrynetStaking", function (accounts) {
                 let actualOwner = await stakingSC.getCandidateOwner(candidate);
                 assert(actualOwner == owners[i], "unexpected owner");
                 let candidateData = await stakingSC.getCandidateData(candidate);
-                assert(candidateData[0], "should be candidate");
-                assert(candidateData[1] == owners[i], "unexpected owner");
-                assertEqual(candidateData[2], minValidatorStake, "unexected stakes");
+                assert(candidateData._isActiveCandidate, "should be candidate");
+                assert(candidateData._owner == owners[i], "unexpected owner");
+                assertEqual(candidateData._totalStake, minValidatorStake, "unexected stakes");
             });
         });
 
@@ -117,9 +117,9 @@ contract("EvrynetStaking", function (accounts) {
             // getListCandidates
             let data = await stakingSC.getListCandidates();
             //update data for candidates and owner
-            candidates = data[0];
+            candidates = data._candidates;
             owners.push(newOwner);
-            let stakes = data[1];
+            let stakes = data.stakes;
             assert(candidates.length == 3, "unexpected candidates length")
             assert(candidates.length == stakes.length, "stakes and candidates lengths are mismatch")
             assert(candidates.includes(newCandidate), "new candidate is not included");
