@@ -2,13 +2,13 @@ const EvrynetStaking = artifacts.require("EvrynetStaking.sol");
 
 const BN = web3.utils.BN;
 
-const { expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
+const { expectEvent, expectRevert, time } = require('@openzeppelin/test-helpers');
 
 const Helper = require("./helper.js");
 const { zeroAddress, oneEvrynet, assertEqual } = require("./helper.js");
 
 let admin;
-let epochPeriod = new BN(1024);
+let epochPeriod = new BN(50);
 let startBlock = new BN(0);
 let maxValidatorsSize = new BN(40);
 let minValidatorStake = new BN(10).mul(oneEvrynet); // 10 evrynet
@@ -249,7 +249,7 @@ contract("EvrynetStaking", function (accounts) {
 
             //unvote from other epoch and checks
             let newBlock = getFirstBlock(unvoteEpoch + 1, startBlock, epochPeriod);
-            await Helper.increaseBlockNumberBySendingEther(admin, zeroAddress, new BN(newBlock).sub(new BN(txResult.receipt.blockNumber)).toNumber());
+            await time.advanceBlockTo(newBlock);
             await stakingSC.unvote(votedCandidate, new BN(1).mul(oneEvrynet), { from: voter2 });
 
             let withdrawEpochs = await stakingSC.getWithdrawEpochs({ from: voter2 });
@@ -267,19 +267,17 @@ contract("EvrynetStaking", function (accounts) {
             let withdrawValue = withdrawData.caps[0];
             let withdrawEpoch = withdrawData.epochs[0];
             // need to wait until withdrawEpoch, otherwise revert it
-            await expectRevert(stakingSC.withdraw(withdrawEpoch, { from: voter }), "can not withdraw for future epoch");
-
+            await expectRevert(stakingSC.withdraw(withdrawEpoch, voter, { from: voter }), "can not withdraw for future epoch");
             let unlockBlock = getFirstBlock(withdrawEpoch, startBlock, epochPeriod);
-            let currentBlock = await Helper.getCurrentBlock();
-            await Helper.increaseBlockNumberBySendingEther(admin, zeroAddress, new BN(unlockBlock).sub(new BN(currentBlock)).toNumber());
+            await time.advanceBlockTo(unlockBlock);
             let initBalance = await Helper.getBalancePromise(voter);
             let txGasPrice = new BN(10).pow(new BN(9));
-            let txResult = await stakingSC.withdraw(withdrawEpoch, { from: voter, gasPrice: txGasPrice });
+            let txResult = await stakingSC.withdraw(withdrawEpoch, voter, { from: voter, gasPrice: txGasPrice });
             let newBalance = await Helper.getBalancePromise(voter);
             let actualReceiveAmount = new BN(newBalance).add(new BN(txGasPrice).mul(new BN(txResult.receipt.gasUsed))).sub(initBalance);
             assertEqual(actualReceiveAmount, withdrawValue);
             // no withdraw cap left to withdraw
-            await expectRevert(stakingSC.withdraw(withdrawEpoch, { from: voter }), "withdraw cap is 0");
+            await expectRevert(stakingSC.withdraw(withdrawEpoch, voter, { from: voter }), "withdraw cap is 0");
         });
     });
 
@@ -311,6 +309,7 @@ contract("EvrynetStaking", function (accounts) {
                 _candidate: candidates[1],
                 _epoch: resignEpoch,
             });
+
             let isCandidate = await stakingSC.isCandidate(candidates[1]);
             assert(!isCandidate, "candidate shoule be removed");
             let currentOwnerStake = await stakingSC.getVoterStake(candidates[1], owners[1]);

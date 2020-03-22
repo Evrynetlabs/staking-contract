@@ -1,5 +1,7 @@
 pragma solidity 0.5.11;
 
+import "./IEvrynetStaking.sol";
+
 /**
  * @title Helps contracts guard against reentrancy attacks.
  */
@@ -61,7 +63,7 @@ library SafeMath {
 }
 
 
-contract EvrynetStaking is ReentrancyGuard {
+contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
 
     using SafeMath for uint;
 
@@ -177,7 +179,7 @@ contract EvrynetStaking is ReentrancyGuard {
         minValidatorStake = _minValidatorStake;
         minVoterCap = _minVoteCap;
 
-        require(_maxValidatorSize >= _candidates.length);
+        require(_maxValidatorSize >= _candidates.length, "invalid _maxValidatorSize");
 
         candidates = _candidates;
         for(uint i = 0; i < _candidates.length; i++) {
@@ -196,16 +198,16 @@ contract EvrynetStaking is ReentrancyGuard {
 
     function () external payable {}
 
-    function transferAdmin(address newAdmin) public onlyAdmin {
+    function transferAdmin(address newAdmin) external onlyAdmin {
         require(newAdmin != address(0), "ADMIN 0");
         admin = newAdmin;
     }
 
-    function updateMinValidateStake(uint _newCap) public onlyAdmin {
+    function updateMinValidateStake(uint _newCap) external onlyAdmin {
         minValidatorStake = _newCap;
     }
 
-    function updateMinVoteCap(uint _newCap) public onlyAdmin {
+    function updateMinVoteCap(uint _newCap) external onlyAdmin {
         minVoterCap = _newCap;
     }
 
@@ -214,9 +216,8 @@ contract EvrynetStaking is ReentrancyGuard {
     /**
      * @dev vote for a candidate, amount of EVRY token is msg.value
      * @param candidate address of candidate to vote for
-     * 
     */
-    function vote(address candidate) public payable onlyValidVoteCap onlyActiveCandidate(candidate) {
+    function vote(address candidate) external payable onlyValidVoteCap onlyActiveCandidate(candidate) {
         uint amount = msg.value;
         address voter = msg.sender;
 
@@ -239,7 +240,7 @@ contract EvrynetStaking is ReentrancyGuard {
      * @param candidate address of candidate to vote for
      * @param amount amount to withdraw/unvote
     */
-    function unvote(address candidate, uint amount) public nonReentrant onlyValidUnvoteAmount(candidate, amount) {
+    function unvote(address candidate, uint amount) external nonReentrant onlyValidUnvoteAmount(candidate, amount) {
         uint curEpoch = getCurrentEpoch();
         address voter = msg.sender;
 
@@ -265,7 +266,7 @@ contract EvrynetStaking is ReentrancyGuard {
      * @param _candidate address of candidate to vote for
      * @param _owner owner of the candidate
     */
-    function register(address _candidate, address _owner) public onlyAdmin onlyNotCandidate(_candidate) {
+    function register(address _candidate, address _owner) external onlyAdmin onlyNotCandidate(_candidate) {
         require(_candidate != address(0), "_candidate address is missing");
         require(_owner != address(0), "_owner address is missing");
 
@@ -292,7 +293,7 @@ contract EvrynetStaking is ReentrancyGuard {
      * @dev after CANDIDATE_LOCKING_PERIOD epochs candidate can withdraw
      * @param _candidate address of candidate to resigned
     */
-    function resign(address _candidate) public onlyActiveCandidate(_candidate) onlyCandidateOwner(_candidate) {
+    function resign(address _candidate) external onlyActiveCandidate(_candidate) onlyCandidateOwner(_candidate) {
         address payable owner = msg.sender;
 
         uint curEpoch = getCurrentEpoch();
@@ -328,8 +329,9 @@ contract EvrynetStaking is ReentrancyGuard {
     /**
      * @dev withdraw locked funds
      * @param epoch withdraw all locked funds from this epoch
+     * @param destAddress address of destination is transfered
     */
-    function withdraw(uint epoch) public nonReentrant returns(bool) {
+    function withdraw(uint epoch, address payable destAddress) external nonReentrant returns(bool) {
         uint curEpoch = getCurrentEpoch();
         require(curEpoch >= epoch, "can not withdraw for future epoch");
 
@@ -342,13 +344,13 @@ contract EvrynetStaking is ReentrancyGuard {
 
         require(amount > 0, "withdraw cap is 0");
 
-        // transfer funds back to owner
-        sender.transfer(amount);
+        // transfer funds back to destAddress
+        destAddress.transfer(amount);
 
         return true;
     }
 
-    function withdrawWithIndex(uint epoch, uint index) public nonReentrant returns(bool) {
+    function withdrawWithIndex(uint epoch, uint index, address payable destAddress) external nonReentrant returns(bool) {
         uint curEpoch = getCurrentEpoch();
         require(curEpoch >= epoch, "can not withdraw for future epoch");
 
@@ -368,12 +370,12 @@ contract EvrynetStaking is ReentrancyGuard {
         withdrawsState[sender].epochs.length--;
 
         // transfer funds back to owner
-        sender.transfer(amount);
+        destAddress.transfer(amount);
 
         return true;
     }
 
-    function updateMaxValidatorSize(uint newMaxValidatorSize) public onlyAdmin {
+    function updateMaxValidatorSize(uint newMaxValidatorSize) external onlyAdmin {
         maxValidatorSize = newMaxValidatorSize;
     }
 
@@ -385,7 +387,7 @@ contract EvrynetStaking is ReentrancyGuard {
     * Return list of candidates with stakes data, current epoch, max validator size and min cap to be a validtor
     */
     function getListCandidates()
-        public view
+        external view
         returns(address[] memory _candidates, uint[] memory stakes, uint epoch, uint validatorSize, uint minValidatorCap)
     {
         epoch = getCurrentEpoch();

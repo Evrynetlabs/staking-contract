@@ -3,3 +3,7 @@ cache
 artifacts
 node_modules
 build
+coverage
+
+#vs code files
+.vscode

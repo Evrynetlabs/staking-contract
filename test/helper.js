@@ -1,4 +1,4 @@
-const { constants } = require('@openzeppelin/test-helpers');
+const { constants, time } = require('@openzeppelin/test-helpers');
 
 const BN = web3.utils.BN;
 require("chai")
@@ -21,7 +21,7 @@ function assertEqual(val1, val2, errorStr) {
 // This is a hack based on the fact that each tx will increase blockNumber by 1  
 module.exports.increaseBlockNumberBySendingEther = async function (sender, recv, blocks) {
     for (let id = 0; id < blocks; id++) {
-        await this.sendEtherWithPromise(sender, recv, 0);
+        await time.advanceBlock();
     }
 }
 
