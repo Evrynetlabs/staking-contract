@@ -68,16 +68,19 @@ contract("EvrynetStaking", function (accounts) {
             stakingSC = await EvrynetStaking.new(candidates, owners, epochPeriod, startBlock, maxValidatorsSize, minValidatorStake, minVoterCap, admin);
         });
         it("updateMaxValidatorSize", async () => {
+            await expectRevert(stakingSC.updateMaxValidatorSize(new BN(80), { from: accounts[1] }), "ADMIN ONLY");
             await stakingSC.updateMaxValidatorSize(new BN(80), { from: admin });
             let maxValidatorsSize = await stakingSC.maxValidatorSize();
             assertEqual(maxValidatorsSize, new BN(80), "unexpected maxValidatorsSize");
         });
         it("updateMinValidateStake", async () => {
+            await expectRevert(stakingSC.updateMinValidateStake(new BN(100), { from: accounts[2] }), "ADMIN ONLY");
             await stakingSC.updateMinValidateStake(new BN(10).pow(new BN(5)), { from: admin });
             let minValidatorStake = await stakingSC.minValidatorStake();
             assertEqual(minValidatorStake, new BN(10).pow(new BN(5)), "unexpected max validator size");
         });
         it("updateMinVoteCap", async () => {
+            await expectRevert(stakingSC.updateMinVoteCap(new BN(30), { from: accounts[3] }), "ADMIN ONLY")
             await stakingSC.updateMinVoteCap(new BN(3).mul(new BN(10).pow(new BN(5))), { from: admin });
             let actualMinVoteCap = await stakingSC.minVoterCap();
             assertEqual(actualMinVoteCap, new BN(3).mul(new BN(10).pow(new BN(5))), "unexpected minVoterCap");
@@ -110,6 +113,7 @@ contract("EvrynetStaking", function (accounts) {
         it("revert if not admin", async () => {
             await expectRevert(stakingSC.register(newCandidate, newOwner, { from: accounts[1] }), "ADMIN ONLY");
         });
+
         it("register success", async () => {
             await stakingSC.register(newCandidate, newOwner, { from: admin });
             // revert if candidate is existed
@@ -142,13 +146,16 @@ contract("EvrynetStaking", function (accounts) {
             voter = accounts[6];
             voter2 = accounts[7];
         })
+
         it("test revert if not vote for valid candidate", async () => {
             await expectRevert(stakingSC.vote(accounts[7], { from: voter, value: minVoterCap }), "only active candidate");
         });
+
         it("test revert if vote cap is too small", async () => {
             let invalidVoteCap = new BN(minVoterCap).sub(new BN(1));
             await expectRevert(stakingSC.vote(votedCandidate, { from: voter, value: invalidVoteCap }), "low vote amout");
         });
+
         it("test vote success", async () => {
             let voteAmount = new BN(3).mul(oneEvrynet); // 3 evrynet
             let txResult = await stakingSC.vote(votedCandidate, { from: voter, value: voteAmount });
@@ -200,14 +207,16 @@ contract("EvrynetStaking", function (accounts) {
             currentStake = await stakingSC.getVoterStake(votedCandidate, voter2);
             assertEqual(currentStake, new BN(2).mul(oneEvrynet));
 
-        })
+        });
+
         it("test revert if invalid unvote amount for voter", async () => {
             await expectRevert(stakingSC.unvote(votedCandidate, new BN(0), { from: voter }), "_cap should be positive");
             await expectRevert(stakingSC.unvote(votedCandidate, new BN(9).mul(oneEvrynet), { from: voter }), "not enough to unvote");
             // test unvote should leave the balance is neither zero nor greater than min voter cap
             let invalidUnvote = new BN(71).mul(oneEvrynet).div(new BN(10));
             await expectRevert(stakingSC.unvote(votedCandidate, invalidUnvote, { from: voter }), "invalid unvote amt");
-        })
+        });
+
         it("test revert if invalid unvote amount for owner", async () => {
             let currentStake = await stakingSC.getVoterStake(votedCandidate, votedOwners);
             assertEqual(currentStake, new BN(0), "not zero balance");
@@ -279,6 +288,27 @@ contract("EvrynetStaking", function (accounts) {
             // no withdraw cap left to withdraw
             await expectRevert(stakingSC.withdraw(withdrawEpoch, voter, { from: voter }), "withdraw cap is 0");
         });
+
+        it("sepcial case: unvote after candidate is resign", async () => {
+            let admin = accounts[0];
+            let candidates = [accounts[1], accounts[2]];
+            let owners = [accounts[1], accounts[3]];
+            let newCandidate = accounts[4];
+            let newOwner = accounts[5];
+            let voter = accounts[6];
+            let stakingSC = await EvrynetStaking.new(candidates, owners, epochPeriod, startBlock, maxValidatorsSize, minValidatorStake, minVoterCap, admin);
+            //register - vote - resign
+            await stakingSC.register(newCandidate, newOwner, { from: admin });
+            let firstOwnerVote = new BN(2).mul(oneEvrynet);
+            await stakingSC.vote(newCandidate, { from: newOwner, value: firstOwnerVote });
+            await stakingSC.vote(newCandidate, { from: voter, value: minVoterCap });
+            await stakingSC.resign(newCandidate, { from: newOwner });
+            // still can unvote now
+            await stakingSC.unvote(newCandidate, minVoterCap, { from: voter, });
+            let currentBlock = await Helper.getCurrentBlock();
+            let unlockEpoch = getEpoch(currentBlock, startBlock, epochPeriod).add(voterUnlockPeriod);
+            await stakingSC.getWithdrawCap(unlockEpoch, { from: voter });
+        });
     });
 
 
@@ -321,6 +351,7 @@ contract("EvrynetStaking", function (accounts) {
             let actualWithdrawCap = await stakingSC.getWithdrawCap(withdrawEpoch, { from: owners[1] });
             assertEqual(actualWithdrawCap, minValidatorStake, "unexpeced withdraw cap");
         });
+
         it("test resign then register successful", async () => {
             await stakingSC.resign(candidates[2], { from: owners[2] });
             await stakingSC.register(candidates[2], accounts[8], { from: admin }); // new owner
@@ -328,6 +359,35 @@ contract("EvrynetStaking", function (accounts) {
             assert(newOwner == accounts[8], "unexpected new owner");
         });
 
+        it("special case:register then resign then register again", async () => {
+            // this is special test so we would like to set up again
+            let admin = accounts[0];
+            let candidates = [accounts[1], accounts[2]];
+            let owners = [accounts[1], accounts[3]];
+            let newCandidate = accounts[4];
+            let newOwner = accounts[5];
+            let voter = accounts[6];
+            let stakingSC = await EvrynetStaking.new(candidates, owners, epochPeriod, startBlock, maxValidatorsSize, minValidatorStake, minVoterCap, admin);
+            //register - vote - resign
+            await stakingSC.register(newCandidate, newOwner, { from: admin });
+            let firstOwnerVote = new BN(2).mul(oneEvrynet);
+            await stakingSC.vote(newCandidate, { from: newOwner, value: firstOwnerVote });
+            await stakingSC.vote(newCandidate, { from: voter, value: minVoterCap });
+            await stakingSC.resign(newCandidate, { from: newOwner });
+            // vote failed now
+            await expectRevert(stakingSC.vote(newOwner, { value: minVoterCap, from: voter }), "only active candidate");
+            //register again with new owner
+            let newOwner2 = accounts[7];
+            await stakingSC.register(newCandidate, newOwner2, { from: admin });
+            let data = await stakingSC.getCandidateData(newCandidate);
+            assert(data._owner == newOwner2, "unexpected owner");
+            assert(data._isActiveCandidate, "not active candidate");
+            assertEqual(data._totalStake, minVoterCap, "unexpected total stake"); // staker from voter
+            assertEqual(await stakingSC.getVoterStake(newCandidate, voter), minVoterCap, "unexpected voter cap");
+            //vote again for this  candidate
+            await stakingSC.vote(newCandidate, { from: voter, value: minVoterCap });
+            assertEqual(await stakingSC.getVoterStake(newCandidate, voter), minVoterCap.mul(new BN(2)), "unexpected voter cap");
+        });
     });
 });
 
