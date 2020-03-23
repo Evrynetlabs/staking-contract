@@ -230,11 +230,14 @@ contract("EvrynetStaking", function (accounts) {
         let votedOwners;
         let voter;
         let voter2;
+        let destAddress;
+
         before("get account", async () => {
             votedCandidate = candidates[2];
             votedOwners = owners[2];
             voter = accounts[6];
             voter2 = accounts[7];
+            destAddress = accounts[8];
 
             // before this test the stake of voter and voter2 is 0.8 and 0.2 evrynet, repectively
             let currentStake = await stakingSC.getVoterStake(votedCandidate, voter);
@@ -323,11 +326,15 @@ contract("EvrynetStaking", function (accounts) {
             await expectRevert(stakingSC.withdraw(withdrawEpoch, voter, { from: voter }), "can not withdraw for future epoch");
             let unlockBlock = getFirstBlock(withdrawEpoch, startBlock, epochPeriod);
             await time.advanceBlockTo(unlockBlock);
-            let initBalance = await Helper.getBalancePromise(voter);
-            let txGasPrice = new BN(10).pow(new BN(9));
-            let txResult = await stakingSC.withdraw(withdrawEpoch, voter, { from: voter, gasPrice: txGasPrice });
-            let newBalance = await Helper.getBalancePromise(voter);
-            let actualReceiveAmount = new BN(newBalance).add(new BN(txGasPrice).mul(new BN(txResult.receipt.gasUsed))).sub(initBalance);
+            let initBalance = await Helper.getBalancePromise(destAddress);
+            let txResult = await stakingSC.withdraw(withdrawEpoch, destAddress, { from: voter });
+            await expectEvent(txResult, "Withdraw", {
+                _staker: voter,
+                _amount: withdrawValue,
+                _destAddress: destAddress
+            });
+            let newBalance = await Helper.getBalancePromise(destAddress);
+            let actualReceiveAmount = new BN(newBalance).sub(initBalance);
             assertEqual(actualReceiveAmount, withdrawValue);
             // no withdraw cap left to withdraw
             await expectRevert(stakingSC.withdraw(withdrawEpoch, voter, { from: voter }), "withdraw cap is 0");
@@ -350,11 +357,15 @@ contract("EvrynetStaking", function (accounts) {
             // wrong index
             await expectRevert(stakingSC.withdrawWithIndex(withdrawEpoch, new BN(0), voter2, { from: voter2 }), "not correct index");
             // tx success
-            let initBalance = await Helper.getBalancePromise(voter2);
-            let txGasPrice = new BN(10).pow(new BN(9));
-            let txResult = await stakingSC.withdrawWithIndex(withdrawEpoch, new BN(withdrawData.caps.length - 1), voter2, { from: voter2, gasPrice: txGasPrice });
-            let newBalance = await Helper.getBalancePromise(voter2);
-            let actualReceiveAmount = new BN(newBalance).add(new BN(txGasPrice).mul(new BN(txResult.receipt.gasUsed))).sub(initBalance);
+            let initBalance = await Helper.getBalancePromise(destAddress);
+            let txResult = await stakingSC.withdrawWithIndex(withdrawEpoch, new BN(withdrawData.caps.length - 1), destAddress, { from: voter2 });
+            await expectEvent(txResult, "Withdraw", {
+                _staker: voter2,
+                _amount: withdrawValue,
+                _destAddress: destAddress
+            });
+            let newBalance = await Helper.getBalancePromise(destAddress);
+            let actualReceiveAmount = new BN(newBalance).sub(initBalance);
             assertEqual(actualReceiveAmount, withdrawValue);
             // no withdraw cap left to withdraw
             await expectRevert(stakingSC.withdrawWithIndex(withdrawEpoch, new BN(0), voter2, { from: voter2 }), "withdraw cap is 0");

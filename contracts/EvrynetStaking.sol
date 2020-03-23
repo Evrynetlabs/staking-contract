@@ -286,7 +286,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         emit Resigned(_candidate, curEpoch);
     }
 
-    event Withdraw(address _staker, uint _amount);
+    event Withdraw(address _staker, uint _amount, address _destAddress);
 
     /**
      * @dev withdraw locked funds
@@ -297,7 +297,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         uint curEpoch = getCurrentEpoch();
         require(curEpoch >= epoch, "can not withdraw for future epoch");
 
-        address payable sender = msg.sender;
+        address sender = msg.sender;
 
         uint amount = withdrawsState[sender].caps[epoch];
         withdrawsState[sender].caps[epoch] = 0;
@@ -309,6 +309,8 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         // transfer funds back to destAddress
         destAddress.transfer(amount);
 
+        emit Withdraw(sender, amount, destAddress);
+
         return true;
     }
 
@@ -316,7 +318,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         uint curEpoch = getCurrentEpoch();
         require(curEpoch >= epoch, "can not withdraw for future epoch");
 
-        address payable sender = msg.sender;
+        address sender = msg.sender;
 
         uint amount = withdrawsState[sender].caps[epoch];
         require(amount > 0, "withdraw cap is 0");
@@ -333,6 +335,8 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
 
         // transfer funds back to owner
         destAddress.transfer(amount);
+
+        emit Withdraw(sender, amount, destAddress);
 
         return true;
     }
