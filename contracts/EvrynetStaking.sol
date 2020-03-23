@@ -173,13 +173,12 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
     {
         require(_epochPeriod > 0, "epoch must be positive");
         require(_candidates.length == candidateOwners.length, "length not match");
+        require(_maxValidatorSize >= _candidates.length, "invalid _maxValidatorSize");
 
         epochPeriod = _epochPeriod;
         maxValidatorSize = _maxValidatorSize;
         minValidatorStake = _minValidatorStake;
         minVoterCap = _minVoteCap;
-
-        require(_maxValidatorSize >= _candidates.length, "invalid _maxValidatorSize");
 
         candidates = _candidates;
         for(uint i = 0; i < _candidates.length; i++) {
@@ -356,10 +355,10 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
 
         address payable sender = msg.sender;
 
-        require(withdrawsState[sender].epochs[index] == epoch, "not correct index");
-
         uint amount = withdrawsState[sender].caps[epoch];
         require(amount > 0, "withdraw cap is 0");
+
+        require(withdrawsState[sender].epochs[index] == epoch, "not correct index");
 
         delete withdrawsState[sender].caps[epoch];
 

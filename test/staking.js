@@ -27,6 +27,20 @@ contract("EvrynetStaking", function (accounts) {
         stakingSC = await EvrynetStaking.new(candidates, owners, epochPeriod, startBlock, maxValidatorsSize, minValidatorStake, minVoterCap, admin);
     });
 
+    describe("test constructor", async () => {
+        it("revert if epochPeriod = 0", async () => {
+            await expectRevert(EvrynetStaking.new(candidates, owners, new BN(0), startBlock, maxValidatorsSize, minValidatorStake, minVoterCap, admin), "epoch must be positive");
+        });
+
+        it("revert if length not match", async () => {
+            await expectRevert(EvrynetStaking.new(candidates, [accounts[1]], epochPeriod, startBlock, maxValidatorsSize, minValidatorStake, minVoterCap, admin), "length not match");
+        });
+
+        it("revert if invalid _maxValidatorSize", async () => {
+            await expectRevert(EvrynetStaking.new(candidates, owners, epochPeriod, startBlock, new BN(1), minValidatorStake, minVoterCap, admin), "invalid _maxValidatorSize");
+        });
+    });
+
     describe("test basic read operation after init", async () => {
         it("getListCandidates", async () => {
             let data = await stakingSC.getListCandidates();
@@ -112,6 +126,18 @@ contract("EvrynetStaking", function (accounts) {
         let newOwner = accounts[5];
         it("revert if not admin", async () => {
             await expectRevert(stakingSC.register(newCandidate, newOwner, { from: accounts[1] }), "ADMIN ONLY");
+        });
+
+        it("revert if register candidate is zero address", async () => {
+            await expectRevert(stakingSC.register(zeroAddress, newOwner, { from: admin }), "_candidate address is missing");
+        });
+
+        it("revert if register candidate owner is zero address", async () => {
+            await expectRevert(stakingSC.register(newCandidate, zeroAddress, { from: admin }), "_owner address is missing");
+        });
+
+        it("revert if too many candidates", async () => {
+            //TODO: test this
         });
 
         it("register success", async () => {
@@ -227,7 +253,7 @@ contract("EvrynetStaking", function (accounts) {
             );
         });
 
-        it("unvote successfull", async () => {
+        it("unvote successfull for voter", async () => {
             // unvote completely
             let txResult = await stakingSC.unvote(votedCandidate, new BN(8).mul(oneEvrynet), { from: voter });
             expectEvent(txResult, "Unvoted", {
@@ -270,6 +296,14 @@ contract("EvrynetStaking", function (accounts) {
             assert(data[1].length == 2, "unexpected withdrawStakes.length");
         });
 
+        it("unvote successfull for owner", async () => {
+            await stakingSC.unvote(votedCandidate, new BN(4).mul(oneEvrynet), { from: votedOwners });
+            //check new stake
+            let newVoterStake = await stakingSC.getVoterStake(votedCandidate, voter);
+            assertEqual(newVoterStake, new BN(0), "unexpected new voter stake");
+        });
+
+
         it("withdraw after unvote", async () => {
             let withdrawData = await stakingSC.getWithdrawEpochsAndCaps({ from: voter });
             assert(withdrawData.epochs.length > 0, "empty withdrawData");
@@ -287,6 +321,33 @@ contract("EvrynetStaking", function (accounts) {
             assertEqual(actualReceiveAmount, withdrawValue);
             // no withdraw cap left to withdraw
             await expectRevert(stakingSC.withdraw(withdrawEpoch, voter, { from: voter }), "withdraw cap is 0");
+        });
+
+        it("withdrawWithIndex after unvote", async () => {
+            // vote - unvote with minVoterCap
+            await stakingSC.vote(votedCandidate, { from: voter2, value: new BN(1).mul(oneEvrynet) });
+            await stakingSC.unvote(votedCandidate, minVoterCap, { from: voter2 });
+            // check withdrawData
+            let withdrawData = await stakingSC.getWithdrawEpochsAndCaps({ from: voter2 });
+            assert(withdrawData.epochs.length > 0, "empty withdrawData");
+            let withdrawValue = withdrawData.caps[withdrawData.caps.length - 1];
+            let withdrawEpoch = withdrawData.epochs[withdrawData.epochs.length - 1];
+            // need to wait until withdrawEpoch, otherwise revert it
+            await expectRevert(stakingSC.withdrawWithIndex(withdrawEpoch, new BN(withdrawData.caps.length - 1), voter2, { from: voter2 }), "can not withdraw for future epoch");
+            let unlockBlock = getFirstBlock(withdrawEpoch, startBlock, epochPeriod);
+            // move to unlock block
+            await time.advanceBlockTo(unlockBlock);
+            // wrong index
+            await expectRevert(stakingSC.withdrawWithIndex(withdrawEpoch, new BN(0), voter2, { from: voter2 }), "not correct index");
+            // tx success
+            let initBalance = await Helper.getBalancePromise(voter2);
+            let txGasPrice = new BN(10).pow(new BN(9));
+            let txResult = await stakingSC.withdrawWithIndex(withdrawEpoch, new BN(withdrawData.caps.length - 1), voter2, { from: voter2, gasPrice: txGasPrice });
+            let newBalance = await Helper.getBalancePromise(voter2);
+            let actualReceiveAmount = new BN(newBalance).add(new BN(txGasPrice).mul(new BN(txResult.receipt.gasUsed))).sub(initBalance);
+            assertEqual(actualReceiveAmount, withdrawValue);
+            // no withdraw cap left to withdraw
+            await expectRevert(stakingSC.withdrawWithIndex(withdrawEpoch, new BN(0), voter2, { from: voter2 }), "withdraw cap is 0");
         });
 
         it("sepcial case: unvote after candidate is resign", async () => {
