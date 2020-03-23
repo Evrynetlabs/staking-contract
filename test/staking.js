@@ -404,6 +404,10 @@ contract("EvrynetStaking", function (accounts) {
         it("test resign successfull", async () => {
             //a person votes for this candidate before resign 
             await stakingSC.vote(candidates[1], { from: accounts[6], value: minVoterCap });
+            //get previous candidate data length
+            let candidateData = await stakingSC.getListCandidates();
+            let lengthCandidate = candidateData._candidates.length;
+            //resign
             let txResult = await stakingSC.resign(candidates[1], { from: owners[1] });
             let resignEpoch = getEpoch(txResult.receipt.blockNumber, startBlock, epochPeriod);
             expectEvent(txResult, "Resigned", {
@@ -421,6 +425,12 @@ contract("EvrynetStaking", function (accounts) {
             let withdrawEpoch = resignEpoch.add(ownerUnlockPeriod);
             let actualWithdrawCap = await stakingSC.getWithdrawCap(withdrawEpoch, { from: owners[1] });
             assertEqual(actualWithdrawCap, minValidatorStake, "unexpeced withdraw cap");
+            //check result of getListCandidates
+            candidateData = await stakingSC.getListCandidates()
+            candidateData._candidates.forEach(candidate => {
+                assert(candidate != candidates[1], "candidates should be deleted");
+            });
+            assertEqual(candidateData._candidates.length, lengthCandidate - 1);
         });
 
         it("test resign then register successful", async () => {
