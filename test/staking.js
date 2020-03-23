@@ -137,7 +137,16 @@ contract("EvrynetStaking", function (accounts) {
         });
 
         it("revert if too many candidates", async () => {
-            //TODO: test this
+            let admin = accounts[0];
+            let candidates = [accounts[1], accounts[2]];
+            let owners = [accounts[1], accounts[3]];
+            let stakingSC = await EvrynetStaking.new(candidates, owners, epochPeriod, startBlock, maxValidatorsSize, minValidatorStake, minVoterCap, admin);
+            for (let i = 2; i < 128; i++) {
+                let addrHex = web3.utils.randomHex(20);
+                await stakingSC.register(addrHex, admin, { from: admin });
+            }
+            let addrHex = web3.utils.randomHex(20);
+            await expectRevert(stakingSC.register(addrHex, admin, { from: admin }), "too many candidates");
         });
 
         it("register success", async () => {
@@ -278,19 +287,20 @@ contract("EvrynetStaking", function (accounts) {
 
             // check withdrawVoterStake
             let unvoteEpoch = getEpoch(txResult.receipt.blockNumber, startBlock, epochPeriod);
-            let unlockpEpoch = unvoteEpoch.add(voterUnlockPeriod);
-            let withdrawVoterCap = await stakingSC.getWithdrawCap(unlockpEpoch, { from: voter2 });
+            let unlockEpoch = unvoteEpoch.add(voterUnlockPeriod);
+            let withdrawVoterCap = await stakingSC.getWithdrawCap(unlockEpoch, { from: voter2 });
             assertEqual(withdrawVoterCap, new BN(1).mul(oneEvrynet), "unexpected withdrawVoterCap");
 
             //unvote from other epoch and checks
-            let newBlock = getFirstBlock(unvoteEpoch + 1, startBlock, epochPeriod);
+            let newBlock = getFirstBlock(unvoteEpoch.add(new BN(1)), startBlock, epochPeriod);
             await time.advanceBlockTo(newBlock);
             await stakingSC.unvote(votedCandidate, new BN(1).mul(oneEvrynet), { from: voter2 });
+            let currentBlock = await Helper.getCurrentBlock()
 
             let withdrawEpochs = await stakingSC.getWithdrawEpochs({ from: voter2 });
             assert(withdrawEpochs.length == 2, "unexpected withdrawEpochs.length");
-            assertEqual(withdrawEpochs[0], new BN(unlockpEpoch));
-            assertEqual(withdrawEpochs[1], new BN(unlockpEpoch).add(new BN(1)));
+            assertEqual(withdrawEpochs[0], new BN(unlockEpoch));
+            assertEqual(withdrawEpochs[1], new BN(unlockEpoch).add(new BN(1)));
 
             let data = await stakingSC.getWithdrawEpochsAndCaps({ from: voter2 });
             assert(data[1].length == 2, "unexpected withdrawStakes.length");
