@@ -13,3 +13,6 @@ Staking contract using in Evrynet Proof-of-Stake model
 
 ## Testing with Buidler
 `npx buidler test`
+
+## Testing with coverage
+`npx buidler coverage --config ./buidler-coverage.config.js`
