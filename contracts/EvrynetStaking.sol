@@ -35,9 +35,9 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
     mapping(address => WithdrawState) internal withdrawsState;
 
     // list voters of a candidate
-    mapping(address => address[]) public candidateVoters;
+    mapping(address => address[]) internal candidateVoters;
 
-    mapping(address => CandidateData) public candidateData;
+    mapping(address => CandidateData) internal candidateData;
     address[] public candidates;
 
     uint256 public startBlock;
