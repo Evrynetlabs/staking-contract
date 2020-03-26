@@ -3,6 +3,9 @@ pragma solidity 0.5.11;
 import "../../contracts/EvrynetStaking.sol";
 
 
+/**
+ *   @title Mockcontract for testing reentrancy attack
+ */
 contract MockEvrynetStaking is EvrynetStaking {
     constructor(
         address[] memory _candidates,

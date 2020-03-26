@@ -32,14 +32,13 @@ contract("ReentrancyAttacker", function (accounts) {
         owners = [accounts[1], accounts[3]];
         attackerOwner = accounts[4];
         stakingSC = await EvrynetStaking.new(candidates, owners, epochPeriod, startBlock, maxValidatorsSize, minValidatorStake, minVoterCap, admin);
-        await stakingSC.sendTransaction({ from: admin, value: minValidatorStake.mul(new BN(candidates.length)) });
-        let newBalance = await Helper.getBalancePromise(stakingSC.address);
-        assertEqual(newBalance, minValidatorStake.mul(new BN(candidates.length)));
         attacker = await ReentrancyAttacker.new(stakingSC.address);
     });
 
     describe("revert if reentrancy", async () => {
         it("revert due to transfer function", async () => {
+            //other votes to increase balance
+            await stakingSC.vote(candidates[0], { from: admin, value: new BN(10).mul(oneEvrynet) })
             await attacker.vote(candidates[0], { from: attackerOwner, value: minVoterCap });
             await attacker.unvote(candidates[0], minVoterCap, { from: attackerOwner });
             let blockNumber = await Helper.getCurrentBlock();
@@ -54,9 +53,10 @@ contract("ReentrancyAttacker", function (accounts) {
 
         it("revert due to reentrancy guard", async () => {
             let stakingSC = await MockEvrynetStaking.new(candidates, owners, epochPeriod, startBlock, maxValidatorsSize, minValidatorStake, minVoterCap, admin);
-            await stakingSC.sendTransaction({ from: admin, value: minValidatorStake.mul(new BN(candidates.length)) });
             //vote - unvote - withdraw
             let attacker = await ReentrancyAttacker.new(stakingSC.address);
+            //other votes to increase balance
+            await stakingSC.vote(candidates[0], { from: admin, value: new BN(10).mul(oneEvrynet) })
             await attacker.vote(candidates[0], { from: attackerOwner, value: minVoterCap });
             await attacker.unvote(candidates[0], minVoterCap, { from: attackerOwner });
             let blockNumber = await Helper.getCurrentBlock();

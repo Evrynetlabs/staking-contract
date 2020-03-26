@@ -3,8 +3,8 @@ pragma solidity 0.5.11;
 import "../../contracts/IEvrynetStaking.sol";
 
 
-/*
- * ReentrancyAttacker is a contract to test reentrancy attack
+/**
+ *   @title contract to test reentrancy attack
  */
 contract ReentrancyAttacker {
     IEvrynetStaking stakingSC;

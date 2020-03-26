@@ -1,5 +1,5 @@
 {
-  "name": "evrynetlabs-staking-contract",
+  "name": "@Evrynetlabs/staking-contract",
   "version": "1.0.0",
   "description": "This repository has the main contracts for Evrynet staking smart-contract.",
   "main": "truffle-config.js",
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "solhint": "./node_modules/.bin/solhint -f table contracts/**/*.sol && ./node_modules/.bin/solhint -f table test/**/*.sol",
+    "solhint": "./node_modules/.bin/solhint -f table contracts/**/*.sol",
     "prettier": "./node_modules/.bin/prettier --write contracts/**/*.sol && ./node_modules/.bin/prettier --write test/**/*.sol"
   },
   "repository": {

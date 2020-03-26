@@ -104,7 +104,7 @@ contract("EvrynetStaking", function (accounts) {
 
     describe("test transfer admin", async () => {
         it("test revert when set admin address to zero", async () => {
-            await expectRevert(stakingSC.transferAdmin(zeroAddress, { from: admin }), "ADMIN 0");
+            await expectRevert(stakingSC.transferAdmin(zeroAddress, { from: admin }), "ADMIN is 0");
         });
 
         it("test revert if msg.sender is not admin", async () => {
@@ -129,11 +129,11 @@ contract("EvrynetStaking", function (accounts) {
         });
 
         it("revert if register candidate is zero address", async () => {
-            await expectRevert(stakingSC.register(zeroAddress, newOwner, { from: admin }), "_candidate address is missing");
+            await expectRevert(stakingSC.register(zeroAddress, newOwner, { from: admin }), "_candidate address is 0");
         });
 
         it("revert if register candidate owner is zero address", async () => {
-            await expectRevert(stakingSC.register(newCandidate, zeroAddress, { from: admin }), "_owner address is missing");
+            await expectRevert(stakingSC.register(newCandidate, zeroAddress, { from: admin }), "_owner address is 0");
         });
 
         it("revert if too many candidates", async () => {
@@ -188,7 +188,7 @@ contract("EvrynetStaking", function (accounts) {
 
         it("test revert if vote cap is too small", async () => {
             let invalidVoteCap = new BN(minVoterCap).sub(new BN(1));
-            await expectRevert(stakingSC.vote(votedCandidate, { from: voter, value: invalidVoteCap }), "low vote amout");
+            await expectRevert(stakingSC.vote(votedCandidate, { from: voter, value: invalidVoteCap }), "low vote amount");
         });
 
         it("test vote success", async () => {
@@ -248,7 +248,7 @@ contract("EvrynetStaking", function (accounts) {
         });
 
         it("test revert if invalid unvote amount for voter", async () => {
-            await expectRevert(stakingSC.unvote(votedCandidate, new BN(0), { from: voter }), "_cap should be positive");
+            await expectRevert(stakingSC.unvote(votedCandidate, new BN(0), { from: voter }), "_amount should be positive");
             await expectRevert(stakingSC.unvote(votedCandidate, new BN(9).mul(oneEvrynet), { from: voter }), "not enough to unvote");
             // test unvote should leave the balance is neither zero nor greater than min voter cap
             let invalidUnvote = new BN(71).mul(oneEvrynet).div(new BN(10));
