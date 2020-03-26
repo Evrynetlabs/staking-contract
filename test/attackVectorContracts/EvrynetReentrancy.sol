@@ -1,10 +1,11 @@
 pragma solidity 0.5.11;
 
-import "./../IEvrynetStaking.sol";
+import "../../contracts/IEvrynetStaking.sol";
+
 
 /*
-* ReentrancyAttacker is a contract to test reentrancy attack
-*/
+ * ReentrancyAttacker is a contract to test reentrancy attack
+ */
 contract ReentrancyAttacker {
     IEvrynetStaking stakingSC;
     uint256 counter;
@@ -29,10 +30,8 @@ contract ReentrancyAttacker {
     }
 
     function() external payable {
-        if (counter == 0)
-            return;
+        if (counter == 0) return;
         counter--;
         require(stakingSC.withdraw(epoch, address(this)), "withdraw not success");
     }
-
 }
