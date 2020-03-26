@@ -1,32 +1,13 @@
 pragma solidity 0.5.11;
 
 import "./IEvrynetStaking.sol";
-import "./SafeMath.sol";
-
+import "./utils/zeppelin/SafeMath.sol";
+import "./utils/ReentrancyGuard.sol";
 
 /**
- * @title Helps contracts guard against reentrancy attacks.
- */
-contract ReentrancyGuard {
-    /// @dev counter to allow mutex lock with only one SSTORE operation
-    uint256 private guardCounter = 1;
-
-    /**
-     * @dev Prevents a function from calling itself, directly or indirectly.
-     * Calling one `nonReentrant` function from
-     * another is not supported. Instead, you can implement a
-     * `private` function doing the actual work, and an `external`
-     * wrapper marked as `nonReentrant`.
-     */
-    modifier nonReentrant() {
-        guardCounter += 1;
-        uint256 localCounter = guardCounter;
-        _;
-        require(localCounter == guardCounter, "Reentrant");
-    }
-}
-
-
+*   @title main evrynet Staking smart-contract
+*   @dev implements IEvrynetStaking
+*/
 contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
     using SafeMath for uint256;
 
@@ -51,7 +32,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         uint256[] epochs;
     }
 
-    mapping(address => WithdrawState) withdrawsState;
+    mapping(address => WithdrawState) internal withdrawsState;
 
     // list voters of a candidate
     mapping(address => address[]) public candidateVoters;
@@ -88,26 +69,26 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         _;
     }
 
-    modifier onlyValidVoteCap {
-        require(msg.value >= minVoterCap, "low vote amout");
+    modifier onlyValidVoteAmount {
+        require(msg.value >= minVoterCap, "low vote amount");
         _;
     }
 
     /**
-     * @dev check if sender can unvote with amount _cap
-     * @dev _cap must be positive, not greater than current voter's stake
-     * @dev if voter is owner of the _candidate, remaing amt must not be less than minValidatorStake
+     * @dev check if sender can unvote with amount _amount
+     * _amount must be positive, not greater than current voter's stake
+     * if voter is owner of the _candidate, remaing amount must not be less than minValidatorStake
      */
-    modifier onlyValidUnvoteAmount(address _candidate, uint256 _cap) {
-        require(_cap > 0, "_cap should be positive");
+    modifier onlyValidUnvoteAmount(address _candidate, uint256 _amount) {
+        require(_amount > 0, "_amount should be positive");
         address voter = msg.sender;
         uint256 voterStake = candidateData[_candidate].voterStake[voter];
-        require(voterStake >= _cap, "not enough to unvote");
+        require(voterStake >= _amount, "not enough to unvote");
         if (candidateData[_candidate].owner == voter) {
-            require(voterStake.sub(_cap) >= minValidatorStake, "new stakes < minValidatorStake");
+            require(voterStake.sub(_amount) >= minValidatorStake, "new stakes < minValidatorStake");
         } else {
             // normal voter, remaining amount should be either 0 or >= minVoterCap
-            uint256 remainAmt = voterStake.sub(_cap);
+            uint256 remainAmt = voterStake.sub(_amount);
             require(remainAmt == 0 || remainAmt >= minVoterCap, "invalid unvote amt");
         }
         _;
@@ -115,9 +96,9 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
 
     /**
      * @dev this list candidates should be the validators for epoch
-     * @dev other validators should be added after deployed
+     * Other validators should be added after deployed
      * @param _candidates list of initial candidates
-     * @param candidateOwners owners of list candidates above
+     * @param _candidateOwners owners of list candidates above
      * @param _epochPeriod number of blocks for each epoch
      * @param _startBlock start block of epoch 0
      * @param _maxValidatorSize number of validators for consensus
@@ -126,7 +107,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
      */
     constructor(
         address[] memory _candidates,
-        address[] memory candidateOwners,
+        address[] memory _candidateOwners,
         uint256 _epochPeriod,
         uint256 _startBlock,
         uint256 _maxValidatorSize,
@@ -135,7 +116,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         address _admin
     ) public {
         require(_epochPeriod > 0, "epoch must be positive");
-        require(_candidates.length == candidateOwners.length, "length not match");
+        require(_candidates.length == _candidateOwners.length, "length not match");
         require(_maxValidatorSize >= _candidates.length, "invalid _maxValidatorSize");
 
         epochPeriod = _epochPeriod;
@@ -147,21 +128,19 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         for (uint256 i = 0; i < _candidates.length; i++) {
             candidateData[_candidates[i]] = CandidateData({
                 isCandidate: true,
-                owner: candidateOwners[i],
+                owner: _candidateOwners[i],
                 totalStake: _minValidatorStake
             });
-            candidateData[_candidates[i]].voterStake[candidateOwners[i]] = _minValidatorStake;
-            candidateVoters[_candidates[i]].push(candidateOwners[i]);
+            candidateData[_candidates[i]].voterStake[_candidateOwners[i]] = _minValidatorStake;
+            candidateVoters[_candidates[i]].push(_candidateOwners[i]);
         }
 
         admin = _admin;
         startBlock = _startBlock;
     }
 
-    function() external payable {}
-
     function transferAdmin(address newAdmin) external onlyAdmin {
-        require(newAdmin != address(0), "ADMIN 0");
+        require(newAdmin != address(0), "ADMIN is 0");
         admin = newAdmin;
     }
 
@@ -182,7 +161,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
     function vote(address candidate)
         external
         payable
-        onlyValidVoteCap
+        onlyValidVoteAmount
         onlyActiveCandidate(candidate)
     {
         uint256 amount = msg.value;
@@ -205,7 +184,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
 
     /**
      * @dev unvote for a candidate, amount of EVRY token to withdraw from this candidate
-     * @dev must either unvote full stake amount or remain amount >= min voter cap
+     * must either unvote full stake amount or remain amount >= min voter cap
      * @param candidate address of candidate to vote for
      * @param amount amount to withdraw/unvote
      */
@@ -238,8 +217,8 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
 
     /**
      * @dev register a new candidate, only can call by admin
-     * @dev if a candidate has been registered, then resigned and re-register,
-     * @dev the stakes of voters are remained the same.
+     * if a candidate has been registered, then resigned and re-register,
+     * the stakes of voters are remained the same.
      * @param _candidate address of candidate to vote for
      * @param _owner owner of the candidate
      */
@@ -248,12 +227,12 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         onlyAdmin
         onlyNotCandidate(_candidate)
     {
-        require(_candidate != address(0), "_candidate address is missing");
-        require(_owner != address(0), "_owner address is missing");
+        require(_candidate != address(0), "_candidate address is 0");
+        require(_owner != address(0), "_owner address is 0");
+        require(candidates.length < MAX_CANDIDATES, "too many candidates");
 
         uint256 curTotalStake = candidateData[_candidate].totalStake;
 
-        require(candidates.length < MAX_CANDIDATES, "too many candidates");
         // not current candidate
         candidateData[_candidate] = CandidateData({
             owner: _owner,
@@ -270,8 +249,8 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
 
     /**
      * @dev resign a candidate, only called by owner of that candidate
-     * @dev when a candidate resigns, at least minValidatorStake will be locked
-     * @dev after CANDIDATE_LOCKING_PERIOD epochs candidate can withdraw
+     * When a candidate resigns, at least minValidatorStake will be locked
+     * After CANDIDATE_LOCKING_PERIOD epochs, candidate can withdraw
      * @param _candidate address of candidate to resigned
      */
     function resign(address _candidate)
@@ -299,6 +278,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         candidateData[_candidate].voterStake[owner] = 0;
 
         candidateData[_candidate].totalStake = candidateData[_candidate].totalStake.sub(ownerStake);
+        //TODO: remove owner from candidateVoters[_candidate]
 
         // locked this fund for few epochs
         uint256 unlockEpoch = curEpoch.add(CANDIDATE_LOCKING_PERIOD);
@@ -329,11 +309,10 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         address sender = msg.sender;
 
         uint256 amount = withdrawsState[sender].caps[epoch];
-        withdrawsState[sender].caps[epoch] = 0;
-
-        // TODO: Can call delete epocsh data here if array length is small
-
         require(amount > 0, "withdraw cap is 0");
+
+        withdrawsState[sender].caps[epoch] = 0;
+        // TODO: Can call delete epocsh data here if array length is small
 
         // transfer funds back to destAddress
         destAddress.transfer(amount);
