@@ -385,24 +385,24 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         }
     }
 
-    function getCandidateStake(address _candidate) public view returns (uint256) {
+    function getCandidateStake(address _candidate) external view returns (uint256) {
         return candidateData[_candidate].totalStake;
     }
 
-    function getCandidateOwner(address _candidate) public view returns (address) {
+    function getCandidateOwner(address _candidate) external view returns (address) {
         return candidateData[_candidate].owner;
     }
 
-    function isCandidate(address _candidate) public view returns (bool) {
+    function isCandidate(address _candidate) external view returns (bool) {
         return candidateData[_candidate].isCandidate;
     }
 
-    function getWithdrawEpochs() public view returns (uint256[] memory epochs) {
+    function getWithdrawEpochs() external view returns (uint256[] memory epochs) {
         epochs = withdrawsState[msg.sender].epochs;
     }
 
     function getWithdrawEpochsAndCaps()
-        public
+        external
         view
         returns (uint256[] memory epochs, uint256[] memory caps)
     {
@@ -413,12 +413,12 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         }
     }
 
-    function getWithdrawCap(uint256 epoch) public view returns (uint256 cap) {
+    function getWithdrawCap(uint256 epoch) external view returns (uint256 cap) {
         cap = withdrawsState[msg.sender].caps[epoch];
     }
 
     function getCandidateData(address _candidate)
-        public
+        external
         view
         returns (bool _isActiveCandidate, address _owner, uint256 _totalStake)
     {
@@ -427,7 +427,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         _totalStake = candidateData[_candidate].totalStake;
     }
 
-    function getVoters(address _candidate) public view returns (address[] memory voters) {
+    function getVoters(address _candidate) external view returns (address[] memory voters) {
         voters = candidateVoters[_candidate];
     }
 
@@ -442,7 +442,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         }
     }
 
-    function getVoterStake(address _candidate, address _voter) public view returns (uint256 stake) {
+    function getVoterStake(address _candidate, address _voter) external view returns (uint256 stake) {
         stake = candidateData[_candidate].voterStake[_voter];
     }
 }
