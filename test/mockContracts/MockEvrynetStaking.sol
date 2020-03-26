@@ -1,6 +1,7 @@
 pragma solidity 0.5.11;
 
-import "./../EvrynetStaking.sol";
+import "../../contracts/EvrynetStaking.sol";
+
 
 contract MockEvrynetStaking is EvrynetStaking {
     constructor(
@@ -38,7 +39,7 @@ contract MockEvrynetStaking is EvrynetStaking {
         uint256 amount = withdrawsState[sender].caps[epoch];
         require(amount > 0, "withdraw cap is 0");
         // transfer funds back to destAddress
-        (bool success,) = destAddress.call.value(amount)("");
+        (bool success, ) = destAddress.call.value(amount)("");
         require(success, "send value not success");
         withdrawsState[sender].caps[epoch] = 0;
         return true;

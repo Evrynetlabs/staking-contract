@@ -7,7 +7,9 @@
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "solhint": "./node_modules/.bin/solhint -f table contracts/**/*.sol && ./node_modules/.bin/solhint -f table test/**/*.sol",
+    "prettier": "./node_modules/.bin/prettier --write contracts/**/*.sol && ./node_modules/.bin/prettier --write test/**/*.sol"
   },
   "repository": {
     "type": "git",
@@ -20,13 +22,17 @@
   },
   "homepage": "https://github.com/Evrynetlabs/staking-contract#readme",
   "devDependencies": {
-    "@nomiclabs/buidler": "^1.2.0",
-    "@nomiclabs/buidler-truffle5": "^1.2.0",
-    "@nomiclabs/buidler-web3": "^1.2.0",
-    "@openzeppelin/test-helpers": "^0.5.5",
-    "chai-as-promised": "^7.1.1",
-    "chai-bn": "^0.2.1",
-    "solidity-coverage": "^0.7.0-beta.3",
-    "web3": "^1.2.6"
+    "@nomiclabs/buidler": "1.2.0",
+    "@nomiclabs/buidler-truffle5": "1.2.0",
+    "@nomiclabs/buidler-web3": "1.2.0",
+    "@openzeppelin/test-helpers": "0.5.5",
+    "chai-as-promised": "7.1.1",
+    "chai-bn": "0.2.1",
+    "prettier": "2.0.2",
+    "prettier-plugin-solidity": "1.0.0-alpha.47",
+    "solidity-coverage": "0.7.0-beta.3",
+    "web3": "1.2.6",
+    "solhint": "2.3.1",
+    "solhint-plugin-prettier": "0.0.4"
   }
 }
