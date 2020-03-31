@@ -1,13 +1,15 @@
 pragma solidity 0.5.13;
 
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 import "./IEvrynetStaking.sol";
-import "./utils/zeppelin/SafeMath.sol";
-import "./utils/ReentrancyGuard.sol";
+
 
 /**
-*   @title main evrynet Staking smart-contract
-*   @dev implements IEvrynetStaking
-*/
+ *   @title main evrynet Staking smart-contract
+ *   @dev implements IEvrynetStaking
+ */
 contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
     using SafeMath for uint256;
 
@@ -75,26 +77,6 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
     }
 
     /**
-     * @dev check if sender can unvote with amount _amount
-     * _amount must be positive, not greater than current voter's stake
-     * if voter is owner of the _candidate, remaing amount must not be less than minValidatorStake
-     */
-    modifier onlyValidUnvoteAmount(address _candidate, uint256 _amount) {
-        require(_amount > 0, "_amount should be positive");
-        address voter = msg.sender;
-        uint256 voterStake = candidateData[_candidate].voterStake[voter];
-        require(voterStake >= _amount, "not enough to unvote");
-        if (candidateData[_candidate].owner == voter) {
-            require(voterStake.sub(_amount) >= minValidatorStake, "new stakes < minValidatorStake");
-        } else {
-            // normal voter, remaining amount should be either 0 or >= minVoterCap
-            uint256 remainAmt = voterStake.sub(_amount);
-            require(remainAmt == 0 || remainAmt >= minVoterCap, "invalid unvote amt");
-        }
-        _;
-    }
-
-    /**
      * @dev this list candidates should be the validators for epoch
      * Other validators should be added after deployed
      * @param _candidates list of initial candidates
@@ -126,13 +108,10 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
 
         candidates = _candidates;
         for (uint256 i = 0; i < _candidates.length; i++) {
-            candidateData[_candidates[i]] = CandidateData({
-                isCandidate: true,
-                owner: _candidateOwners[i],
-                totalStake: _minValidatorStake
-            });
-            candidateData[_candidates[i]].voterStake[_candidateOwners[i]] = _minValidatorStake;
-            candidateVoters[_candidates[i]].push(_candidateOwners[i]);
+            address candidate = candidates[i];
+            candidateData[candidate] = CandidateData({isCandidate: true, owner: _candidateOwners[i], totalStake: _minValidatorStake});
+            candidateData[candidate].voterStake[_candidateOwners[i]] = _minValidatorStake;
+            candidateVoters[candidate].push(_candidateOwners[i]);
         }
 
         admin = _admin;
@@ -152,18 +131,11 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         minVoterCap = _newCap;
     }
 
-    event Voted(address voter, address candidate, uint256 amount);
-
     /**
      * @dev vote for a candidate, amount of EVRY token is msg.value
      * @param candidate address of candidate to vote for
      */
-    function vote(address candidate)
-        external
-        payable
-        onlyValidVoteAmount
-        onlyActiveCandidate(candidate)
-    {
+    function vote(address candidate) external payable onlyValidVoteAmount onlyActiveCandidate(candidate) {
         uint256 amount = msg.value;
         address voter = msg.sender;
 
@@ -172,15 +144,11 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
             candidateVoters[candidate].push(voter);
         }
 
-        candidateData[candidate].voterStake[voter] = candidateData[candidate].voterStake[voter].add(
-            amount
-        );
+        candidateData[candidate].voterStake[voter] = candidateData[candidate].voterStake[voter].add(amount);
         candidateData[candidate].totalStake = candidateData[candidate].totalStake.add(amount);
 
         emit Voted(voter, candidate, amount);
     }
-
-    event Unvoted(address voter, address candidate, uint256 amount);
 
     /**
      * @dev unvote for a candidate, amount of EVRY token to withdraw from this candidate
@@ -188,32 +156,30 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
      * @param candidate address of candidate to vote for
      * @param amount amount to withdraw/unvote
      */
-    function unvote(address candidate, uint256 amount)
-        external
-        nonReentrant
-        onlyValidUnvoteAmount(candidate, amount)
-    {
+    function unvote(address candidate, uint256 amount) external nonReentrant {
+        require(amount > 0, "amount should be positive");
         uint256 curEpoch = getCurrentEpoch();
         address voter = msg.sender;
 
-        candidateData[candidate].voterStake[voter] = candidateData[candidate].voterStake[voter].sub(
-            amount
-        );
+        uint256 remainAmount = candidateData[candidate].voterStake[voter].sub(amount);
+        if (candidateData[candidate].owner == voter) {
+            require(remainAmount >= minValidatorStake, "new stakes < minValidatorStake");
+        } else {
+            // normal voter, remaining amount should be either 0 or >= minVoterCap
+            require(remainAmount == 0 || remainAmount >= minVoterCap, "invalid unvote amt");
+        }
 
+        candidateData[candidate].voterStake[voter] = remainAmount;
         candidateData[candidate].totalStake = candidateData[candidate].totalStake.sub(amount);
 
         // refund after delay X epochs
         uint256 withdrawEpoch = curEpoch.add(VOTER_LOCKING_PERIOD);
-        withdrawsState[voter].caps[withdrawEpoch] = withdrawsState[voter].caps[withdrawEpoch].add(
-            amount
-        );
+        withdrawsState[voter].caps[withdrawEpoch] = withdrawsState[voter].caps[withdrawEpoch].add(amount);
         // TODO: Check if withdrawEpoch already exists in the array
         withdrawsState[voter].epochs.push(withdrawEpoch);
 
         emit Unvoted(voter, candidate, amount);
     }
-
-    event Registered(address candidate, address owner);
 
     /**
      * @dev register a new candidate, only can call by admin
@@ -222,11 +188,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
      * @param _candidate address of candidate to vote for
      * @param _owner owner of the candidate
      */
-    function register(address _candidate, address _owner)
-        external
-        onlyAdmin
-        onlyNotCandidate(_candidate)
-    {
+    function register(address _candidate, address _owner) external onlyAdmin onlyNotCandidate(_candidate) {
         require(_candidate != address(0), "_candidate address is 0");
         require(_owner != address(0), "_owner address is 0");
         require(candidates.length < MAX_CANDIDATES, "too many candidates");
@@ -234,18 +196,12 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         uint256 curTotalStake = candidateData[_candidate].totalStake;
 
         // not current candidate
-        candidateData[_candidate] = CandidateData({
-            owner: _owner,
-            isCandidate: true,
-            totalStake: curTotalStake
-        });
+        candidateData[_candidate] = CandidateData({owner: _owner, isCandidate: true, totalStake: curTotalStake});
         candidates.push(_candidate);
         candidateVoters[_candidate].push(_owner);
 
         emit Registered(_candidate, _owner);
     }
-
-    event Resigned(address _candidate, uint256 _epoch);
 
     /**
      * @dev resign a candidate, only called by owner of that candidate
@@ -253,11 +209,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
      * After CANDIDATE_LOCKING_PERIOD epochs, candidate can withdraw
      * @param _candidate address of candidate to resigned
      */
-    function resign(address _candidate)
-        external
-        onlyActiveCandidate(_candidate)
-        onlyCandidateOwner(_candidate)
-    {
+    function resign(address _candidate) external onlyActiveCandidate(_candidate) onlyCandidateOwner(_candidate) {
         address payable owner = msg.sender;
 
         uint256 curEpoch = getCurrentEpoch();
@@ -282,27 +234,19 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
 
         // locked this fund for few epochs
         uint256 unlockEpoch = curEpoch.add(CANDIDATE_LOCKING_PERIOD);
-        withdrawsState[owner].caps[unlockEpoch] = withdrawsState[owner].caps[unlockEpoch].add(
-            ownerStake
-        );
+        withdrawsState[owner].caps[unlockEpoch] = withdrawsState[owner].caps[unlockEpoch].add(ownerStake);
         // TODO: Check if unlockEpoch exists in the array
         withdrawsState[owner].epochs.push(unlockEpoch);
 
         emit Resigned(_candidate, curEpoch);
     }
 
-    event Withdraw(address _staker, uint256 _amount, address _destAddress);
-
     /**
      * @dev withdraw locked funds
      * @param epoch withdraw all locked funds from this epoch
      * @param destAddress address of destination is transfered
      */
-    function withdraw(uint256 epoch, address payable destAddress)
-        external
-        nonReentrant
-        returns (bool)
-    {
+    function withdraw(uint256 epoch, address payable destAddress) external nonReentrant returns (bool) {
         uint256 curEpoch = getCurrentEpoch();
         require(curEpoch >= epoch, "can not withdraw for future epoch");
 
@@ -322,11 +266,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         return true;
     }
 
-    function withdrawWithIndex(uint256 epoch, uint256 index, address payable destAddress)
-        external
-        nonReentrant
-        returns (bool)
-    {
+    function withdrawWithIndex(uint256 epoch, uint256 index, address payable destAddress) external nonReentrant returns (bool) {
         uint256 curEpoch = getCurrentEpoch();
         require(curEpoch >= epoch, "can not withdraw for future epoch");
 
@@ -367,13 +307,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
     function getListCandidates()
         external
         view
-        returns (
-            address[] memory _candidates,
-            uint256[] memory stakes,
-            uint256 epoch,
-            uint256 validatorSize,
-            uint256 minValidatorCap
-        )
+        returns (address[] memory _candidates, uint256[] memory stakes, uint256 epoch, uint256 validatorSize, uint256 minValidatorCap)
     {
         epoch = getCurrentEpoch();
         validatorSize = maxValidatorSize;
@@ -401,11 +335,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         epochs = withdrawsState[msg.sender].epochs;
     }
 
-    function getWithdrawEpochsAndCaps()
-        external
-        view
-        returns (uint256[] memory epochs, uint256[] memory caps)
-    {
+    function getWithdrawEpochsAndCaps() external view returns (uint256[] memory epochs, uint256[] memory caps) {
         epochs = withdrawsState[msg.sender].epochs;
         caps = new uint256[](epochs.length);
         for (uint256 i = 0; i < epochs.length; i++) {
@@ -417,11 +347,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         cap = withdrawsState[msg.sender].caps[epoch];
     }
 
-    function getCandidateData(address _candidate)
-        external
-        view
-        returns (bool _isActiveCandidate, address _owner, uint256 _totalStake)
-    {
+    function getCandidateData(address _candidate) external view returns (bool _isActiveCandidate, address _owner, uint256 _totalStake) {
         _isActiveCandidate = candidateData[_candidate].isCandidate;
         _owner = candidateData[_candidate].owner;
         _totalStake = candidateData[_candidate].totalStake;
@@ -431,11 +357,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         voters = candidateVoters[_candidate];
     }
 
-    function getVoterStakes(address _candidate, address[] memory voters)
-        public
-        view
-        returns (uint256[] memory stakes)
-    {
+    function getVoterStakes(address _candidate, address[] memory voters) public view returns (uint256[] memory stakes) {
         stakes = new uint256[](voters.length);
         for (uint256 i = 0; i < voters.length; i++) {
             stakes[i] = candidateData[_candidate].voterStake[voters[i]];
