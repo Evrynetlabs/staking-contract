@@ -248,8 +248,9 @@ contract("EvrynetStaking", function (accounts) {
         });
 
         it("test revert if invalid unvote amount for voter", async () => {
-            await expectRevert(stakingSC.unvote(votedCandidate, new BN(0), { from: voter }), "_amount should be positive");
-            await expectRevert(stakingSC.unvote(votedCandidate, new BN(9).mul(oneEvrynet), { from: voter }), "not enough to unvote");
+            await expectRevert(stakingSC.unvote(votedCandidate, new BN(0), { from: voter }), "amount should be positive");
+            // unvoting with amount higher than current amount will overflow
+            await expectRevert(stakingSC.unvote(votedCandidate, new BN(9).mul(oneEvrynet), { from: voter }), "subtraction overflow");
             // test unvote should leave the balance is neither zero nor greater than min voter cap
             let invalidUnvote = new BN(71).mul(oneEvrynet).div(new BN(10));
             await expectRevert(stakingSC.unvote(votedCandidate, invalidUnvote, { from: voter }), "invalid unvote amt");

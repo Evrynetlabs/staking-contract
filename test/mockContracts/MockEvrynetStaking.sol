@@ -16,25 +16,9 @@ contract MockEvrynetStaking is EvrynetStaking {
         uint256 _minValidatorStake,
         uint256 _minVoteCap,
         address _admin
-    )
-        public
-        EvrynetStaking(
-            _candidates,
-            candidateOwners,
-            _epochPeriod,
-            _startBlock,
-            _maxValidatorSize,
-            _minValidatorStake,
-            _minVoteCap,
-            _admin
-        )
-    {}
+    ) public EvrynetStaking(_candidates, candidateOwners, _epochPeriod, _startBlock, _maxValidatorSize, _minValidatorStake, _minVoteCap, _admin) {}
 
-    function withdraw(uint256 epoch, address payable destAddress)
-        external
-        nonReentrant
-        returns (bool)
-    {
+    function withdraw(uint256 epoch, address payable destAddress) external nonReentrant returns (bool) {
         uint256 curEpoch = getCurrentEpoch();
         require(curEpoch >= epoch, "can not withdraw for future epoch");
         address payable sender = msg.sender;
