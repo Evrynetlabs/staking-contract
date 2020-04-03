@@ -219,7 +219,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
             if (candidates[i] == _candidate) {
                 candidates[i] = candidates[candidates.length - 1];
                 delete candidates[candidates.length - 1];
-                candidates.length--;
+                candidates.pop();
                 break;
             }
         }
@@ -283,7 +283,7 @@ contract EvrynetStaking is ReentrancyGuard, IEvrynetStaking {
         // replace this index with last index, then delete last value
         withdrawsState[sender].epochs[index] = withdrawsState[sender].epochs[epochLength - 1];
         delete withdrawsState[sender].epochs[epochLength - 1];
-        withdrawsState[sender].epochs.length--;
+        withdrawsState[sender].epochs.pop();
 
         // transfer funds back to owner
         destAddress.transfer(amount);

@@ -1,6 +1,6 @@
 pragma solidity 0.5.13;
 
-import "../../contracts/IEvrynetStaking.sol";
+import "../IEvrynetStaking.sol";
 
 
 /**
