@@ -22,8 +22,8 @@
   },
   "homepage": "https://github.com/Evrynetlabs/staking-contract#readme",
   "devDependencies": {
-    "@nomiclabs/buidler": "^1.2.0",
-    "@nomiclabs/buidler-truffle5": "^1.2.0",
+    "@nomiclabs/buidler": "1.2.0",
+    "@nomiclabs/buidler-truffle5": "1.2.0",
     "@nomiclabs/buidler-web3": "1.2.0",
     "@openzeppelin/contracts": "2.5.0",
     "@openzeppelin/test-helpers": "0.5.5",
