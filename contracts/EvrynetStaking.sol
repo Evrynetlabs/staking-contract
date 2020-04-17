@@ -1,9 +1,10 @@
 pragma solidity 0.5.13;
 
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 import "./IEvrynetStaking.sol";
 
-import "./utils/SafeMath.sol";
-import "./utils/ReentrancyGuard.sol";
 
 /**
  *   @title main evrynet Staking smart-contract
