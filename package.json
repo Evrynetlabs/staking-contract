@@ -1,6 +1,6 @@
 {
   "name": "@Evrynetlabs/staking-contract",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "description": "This repository has the main contracts for Evrynet staking smart-contract.",
   "main": "truffle-config.js",
   "directories": {
