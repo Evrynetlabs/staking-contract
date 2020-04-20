@@ -6,7 +6,7 @@ Staking contract using in Evrynet Proof-of-Stake model
 2. `npm ci`
 
 ## Compilation
-`npx buidler compile`
+`yarn run buidler compile`
 
 ## Linting
 ```
@@ -15,7 +15,7 @@ npm run prettier
 ```
 
 ## Testing with Buidler
-`npx buidler test`
+`yarn run buidler test`
 
 ## Testing with coverage
-`npx buidler coverage --config ./buidler-coverage.config.js`
+`yarn run buidler coverage --config ./buidler-coverage.config.js`
